@@ -1,4 +1,4 @@
-require_relative "lib/havanna"
+require_relative "lib/havanna/version"
 
 Gem::Specification.new do |s|
   s.name     = "havanna"
