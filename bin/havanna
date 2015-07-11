@@ -1,0 +1,137 @@
+#! /usr/bin/env ruby
+
+stop = proc do
+  if defined?(Havanna)
+    Havanna.stop
+  else
+    exit 0
+  end
+end
+
+trap(:INT,  &stop)
+trap(:TERM, &stop)
+
+usage = <<-EOS
+Usage:
+
+  havanna start [-r <require>] [-d] [-p <pid-path>] [-l <log-path>]
+  havanna stop [-p <pid-path>]
+
+EOS
+
+require "clap"
+require_relative "../lib/havanna"
+
+opts = {
+  requires: []
+}
+
+command, _ = Clap.run ARGV,
+  "-d" => -> {
+    opts[:daemonize] = true
+    opts[:log_path] = File.expand_path("havanna.log") unless opts.include?(:log_path)
+  },
+  "-l" => -> path {
+    opts[:log_path] = path
+  },
+  "-p" => -> path {
+    opts[:pid_path] = path
+  },
+  "-s" => -> size {
+    opts[:pool_size] = Integer(size)
+  },
+  "-r" => -> file {
+    opts[:requires] << file
+  },
+  "-v" => -> {
+    require_relative "../lib/havanna/version"
+
+    puts Havanna::VERSION
+
+    exit 0
+  },
+  "-h" => -> {
+    puts(usage)
+    exit 0
+  }
+
+opts[:pid_path] = File.expand_path("havanna.pid") unless opts.include?(:pid_path)
+
+opts[:requires].each do |file|
+  require(file)
+end
+
+module Havanna
+  def self.run(worker)
+    workers << worker
+  end
+
+  def self.workers
+    @workers ||= []
+  end
+end
+
+case command
+when "start"
+  if opts[:daemonize]
+    Process.daemon(true)
+
+    File.open(opts[:pid_path], File::RDWR|File::EXCL|File::CREAT, 0600) do |io|
+      io.write(Process.pid)
+    end
+
+    at_exit do
+      File.delete(opts[:pid_path]) if File.exists?(opts[:pid_path])
+    end
+  end
+
+  if opts[:log_path]
+    $stdout.reopen(opts[:log_path], "a")
+    $stderr.reopen(opts[:log_path], "a")
+  end
+
+  load "./Havannafile"
+
+  opts[:pool_size] = Havanna.workers.size unless opts.include?(:pool_size)
+
+  threads_per_worker = opts[:pool_size] / Havanna.workers.size
+
+  if threads_per_worker == 0
+    abort("Not enough threads for your workers (found #{Havanna.workers.size} workers).")
+  end
+
+  pool = Havanna.workers.each_with_object([]) do |worker, accum|
+    accum.concat(Array.new(threads_per_worker) do
+      Thread.new(worker) do |worker|
+        Thread.current.abort_on_exception = true
+        Havanna.start(worker)
+      end
+    end)
+  end
+
+  pool.each(&:join)
+
+when "stop"
+  if File.exist?(opts[:pid_path])
+    pid = Integer(File.read(opts[:pid_path]).chomp)
+
+    running = true
+
+    Process.kill(:TERM, pid)
+
+    while running
+      begin
+        Process.kill(0, pid)
+        running = true
+      rescue Errno::ESRCH
+        running = false
+      end
+    end
+  end
+
+else
+  $stderr.puts("Unkown command #{command.inspect}.")
+  $stderr.puts(usage)
+
+  exit 2
+end
