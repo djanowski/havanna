@@ -45,6 +45,8 @@ def root(path)
   File.expand_path("../#{path}", File.dirname(__FILE__))
 end
 
+LIB = root("lib")
+
 disque = Disque.new("127.0.0.1:7711")
 
 prepare do
@@ -56,7 +58,7 @@ test "start" do
   pid = nil
 
   begin
-    pid = spawn("#{root("bin/havanna")} start", chdir: "test/workers/echo")
+    pid = spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} start", chdir: "test/workers/echo")
 
     disque.push("Echo", 2, 5000)
 
@@ -72,7 +74,7 @@ test "gracefully handles TERM signals" do
   disque.push("Slow", 3, 5000)
 
   begin
-    spawn("#{root("bin/havanna")} -d start", chdir: "test/workers/slow")
+    spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} -d start", chdir: "test/workers/slow")
 
     pid = read_pid_file("./test/workers/slow/havanna.pid")
 
@@ -87,11 +89,11 @@ test "gracefully handles TERM signals" do
 end
 
 test "stop waits for workers to be done" do
-  spawn("#{root("bin/havanna")} start -d", chdir: "test/workers/slow")
+  spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} start -d", chdir: "test/workers/slow")
 
   pid = read_pid_file("./test/workers/slow/havanna.pid")
 
-  stopper = spawn("#{root("bin/havanna")} stop", chdir: "test/workers/slow")
+  stopper = spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} stop", chdir: "test/workers/slow")
 
   # Let the stop command start.
   wait_for { running?(stopper) }
@@ -112,7 +114,7 @@ test "use a specific path for the pid file" do
   pid_path = "./test/workers/echo/foo.pid"
 
   begin
-    spawn("#{root("bin/havanna")} -d start -p foo.pid", chdir: "test/workers/echo")
+    spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} -d start -p foo.pid", chdir: "test/workers/echo")
 
     pid = read_pid_file(pid_path)
 
@@ -130,7 +132,7 @@ test "load Havannafile" do
   pid = nil
 
   begin
-    pid = spawn("#{root("bin/havanna")} start", chdir: "test/workers/echo")
+    pid = spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} start", chdir: "test/workers/echo")
 
     disque.push("Echo", 2, 5000)
 
@@ -152,7 +154,7 @@ test "redirect stdout and stderr to a log file when daemonizing" do
   File.delete(log_path) if File.exist?(log_path)
 
   begin
-    pid = spawn("#{root("bin/havanna")} -d start", chdir: "test/workers/logger")
+    pid = spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} -d start", chdir: "test/workers/logger")
 
     assert wait_for {
       `ps -p #{pid} -o state`.lines.to_a.last[/(\w+)/, 1] == "Z"
@@ -181,7 +183,7 @@ test "redirect stdout and stderr to a different log file when daemonizing" do
   File.delete(log_path) if File.exist?(log_path)
 
   begin
-    pid = spawn("#{root("bin/havanna")} -d -l foo.log start", chdir: "test/workers/logger")
+    pid = spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} -d -l foo.log start", chdir: "test/workers/logger")
 
     assert wait_for {
       `ps -p #{pid} -o state`.lines.to_a.last[/(\w+)/, 1] == "Z"
@@ -206,7 +208,7 @@ test "daemonizes" do
   pid_path = "./test/workers/echo/havanna.pid"
 
   begin
-    pid = spawn("#{root("bin/havanna")} -d start", chdir: "test/workers/echo")
+    pid = spawn({"RUBYLIB" => LIB}, "#{root("bin/havanna")} -d start", chdir: "test/workers/echo")
 
     assert wait_for {
       `ps -p #{pid} -o state`.lines.to_a.last[/(\w+)/, 1] == "Z"

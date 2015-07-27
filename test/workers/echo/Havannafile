@@ -1,3 +1,5 @@
-require_relative "echo"
+Havanna.connect("127.0.0.1:7711")
 
-Havanna.run(Echo)
+Havanna.run(Echo: -> job {
+  Havanna.push("Echo:result", job, 5000)
+})
