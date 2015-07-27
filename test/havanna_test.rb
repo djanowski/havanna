@@ -11,7 +11,7 @@ def wait_for_pid(pid)
 end
 
 def wait_for_child(pid)
-  Timeout.timeout(5) do
+  Timeout.timeout(6) do
     Process.wait(pid)
   end
 end
@@ -136,7 +136,7 @@ test "load Havannafile" do
 
     value = wait_for { disque.fetch(from: ["Echo:result"]) }
 
-    assert_equal "2", value
+    assert_equal "2", value[0][2]
   ensure
     Process.kill(:INT, pid) if pid
   end
@@ -158,7 +158,7 @@ test "redirect stdout and stderr to a log file when daemonizing" do
       `ps -p #{pid} -o state`.lines.to_a.last[/(\w+)/, 1] == "Z"
     }
 
-    redis.lpush("Logger", 1)
+    disque.push("Logger", "1", 5000)
   ensure
     detached_pid = read_pid_file(pid_path)
 
@@ -168,7 +168,7 @@ test "redirect stdout and stderr to a log file when daemonizing" do
 
   wait_for_pid(detached_pid)
 
-  assert_equal "out: 1\nerr: 1\n", File.read(log_path)
+  assert_equal "Started worker Logger\nout: 1\nerr: 1\n", File.read(log_path)
 end
 
 test "redirect stdout and stderr to a different log file when daemonizing" do
@@ -187,7 +187,7 @@ test "redirect stdout and stderr to a different log file when daemonizing" do
       `ps -p #{pid} -o state`.lines.to_a.last[/(\w+)/, 1] == "Z"
     }
 
-    redis.lpush("Logger", 1)
+    disque.push("Logger", "1", 5000)
   ensure
     detached_pid = read_pid_file(pid_path)
 
@@ -197,7 +197,7 @@ test "redirect stdout and stderr to a different log file when daemonizing" do
 
   wait_for_pid(detached_pid)
 
-  assert_equal "out: 1\nerr: 1\n", File.read(log_path)
+  assert_equal "Started worker Logger\nout: 1\nerr: 1\n", File.read(log_path)
 end
 
 test "daemonizes" do
