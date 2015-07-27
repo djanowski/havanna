@@ -1,8 +1,7 @@
 require "disque"
+require_relative "havanna/version"
 
 module Havanna
-  VERSION = "1.0.0"
-
   def self.connect(*args)
     @connect = args
     @disque = Disque.new(*args)
