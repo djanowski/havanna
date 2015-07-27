@@ -44,8 +44,6 @@ command, _ = Clap.run ARGV,
     opts[:requires] << file
   },
   "-v" => -> {
-    require_relative "../lib/havanna/version"
-
     puts Havanna::VERSION
 
     exit 0
