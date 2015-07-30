@@ -3,25 +3,57 @@ Havanna
 
 Ruby workers with [Disque][disque].
 
+
 Usage
 -----
 
-Create a worker:
+Similar to Rack's `config.ru`, Havanna has an entry point file where you
+explicitly declare handlers for your queues.
+The minimum you need to use Havanna is to create a `Havannafile`:
+
+```
+require "app"
+
+Havanna.run(Hello: -> job {
+  puts("Hello, #{job}")
+})
+```
+
+Now on the command line, start Havanna:
+
+```
+$ havanna start
+```
+
+In a different window, try queuing a job using Disque's built-in client:
+
+```
+$ disque addjob Hello world 5000
+```
+
+As expected, you should see the string "Hello, world" in the terminal where you
+started Havanna.
+
+
+Workers
+-------
+
+If you prefer to use classes to model your workers, there's `Havanna::Worker`.
+For instance, this could be `workers/mailer.rb`:
 
 ```ruby
-class Mailer
+require "havanna/worker"
+
+class Mailer < Havanna::Worker
   def call(item)
-    puts "Emailing #{item}..."
+    puts("Emailing #{item}...")
 
     # Actually do it.
   end
 end
 ```
 
-Havanna doesn't perform any kind of magic autodiscovery of
-your workers. Similar to Rack's `config.ru`, Havanna has an
-entry point file where you explicitly declare your workers.
-This would be a valid `Havannafile`:
+Then your `Havannafile` would look like this:
 
 ```ruby
 require "app"
@@ -29,21 +61,11 @@ require "app"
 Havanna.run(Mailer)
 ```
 
-Now on the command line, start your workers:
 
-```
-$ havanna start
-```
+Administration
+--------------
 
-In a different window, try queuing a job using Disque's
-built-in client:
-
-```
-$ disque addjob Mailer foo@example.com 5000
-```
-
-Once you're up and running, deploy your workers with `-d`
-for daemonization:
+Once you're up and running, deploy your workers with `-d` for daemonization:
 
 ```
 $ havanna start -d

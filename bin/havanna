@@ -102,7 +102,7 @@ when "start"
     accum.concat(Array.new(threads_per_worker) do
       Thread.new(worker) do |worker|
         Thread.current.abort_on_exception = true
-        Havanna.start(worker)
+        Havanna.start(*worker.to_h.to_a.first)
       end
     end)
   end
