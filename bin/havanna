@@ -14,7 +14,7 @@ trap(:TERM, &stop)
 usage = <<-EOS
 Usage:
 
-  havanna start [-r <require>] [-d] [-p <pid-path>] [-l <log-path>]
+  havanna start [-r <require>] [-d] [-p <pid-path>] [-l <log-path>] [-s <pool-size>
   havanna stop [-p <pid-path>]
 
 EOS
